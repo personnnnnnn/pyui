@@ -28,14 +28,21 @@ class UIData:
     height: Sizing = Fit()
 
 class UI:
+    __current_element: list['UI'] = []
+
     def __init__(self):
         self.data = UIData()
+        self.children: list['UI'] = []
+        self.parent: 'UI' = None
 
     def __enter__(self):
-        ...
+        if len(UI.__current_element) == 0:
+            UI.__current_element[-1].children.append(self)
+            self.parent = UI.__current_element[-1]
+        UI.__current_element.append(self)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        ...
+        UI.__current_element.pop()
 
     def background(self, color: Color | None) -> 'UI':
         self.data.background_color = color
