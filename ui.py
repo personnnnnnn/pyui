@@ -227,10 +227,33 @@ class UI:
     def sizing_fixed(self, width: float, height: float) -> 'UI':
         return self.width_fixed(width).height_fixed(height)
 
+    def render(self, draw_commands: list['DrawCommand'] | None = None, x: float = 0, y: float = 0) -> list['DrawCommand']:
+        if draw_commands is None:
+            draw_commands = []
 
-def render() -> list['DrawCommand']:
-    draw_commands: list['DrawCommand'] = []
+        if self.ui_data.background_color is not None:
+            draw_commands.append(DrawRect(
+                x=x,
+                y=y,
+                width=self.element_data.width,
+                height=self.element_data.height,
+                color=self.ui_data.background_color,
+            ))
 
-    root = UI.root_element
+        x += self.ui_data.padding_left
+        y += self.ui_data.padding_top
 
-    return draw_commands
+        x_axis = self.x_axis()
+
+        for child in self.children:
+            child.render(draw_commands, x, y)
+            if x_axis:
+                x += self.ui_data.child_gap
+            else:
+                y += self.ui_data.child_gap
+
+        return draw_commands
+
+
+def render(x: float = 0, y: float = 0) -> list['DrawCommand']:
+    return UI.root_element.render(x=x, y=y)
