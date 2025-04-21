@@ -11,6 +11,7 @@ class Color:
 class DrawCommand:
     ...
 
+
 @dataclass
 class DrawRect(DrawCommand):
     x: float
@@ -22,14 +23,20 @@ class DrawRect(DrawCommand):
 
 class Sizing: ...
 
+
 class Fit(Sizing): ...
+
+
 @dataclass
 class Fixed(Sizing): pixels: float
 
 
 class LayoutDirection: ...
 
+
 class LeftToRight(LayoutDirection): ...
+
+
 class TopToBottom(LayoutDirection): ...
 
 
@@ -45,6 +52,7 @@ class UIData:
     height: Sizing = Fit()
     layout_direction: LayoutDirection = LeftToRight()
 
+
 @dataclass
 class ElementData:
     width: float = 0
@@ -54,6 +62,12 @@ class ElementData:
 class UI:
     current_element: list['UI'] = []
     root_element: 'UI' = None
+
+    def get_ui_length_across(self, x_axis: bool) -> Sizing:
+        return self.ui_data.width if x_axis else self.ui_data.height
+
+    def get_ui_length_perpen(self, x_axis: bool) -> Sizing:
+        return self.get_ui_length_across(not x_axis)
 
     def get_length_across(self, x_axis: bool) -> float:
         return self.element_data.width if x_axis else self.element_data.height
@@ -76,6 +90,9 @@ class UI:
     def get_padding_perpen(self, x_axis: bool) -> float:
         return self.get_padding_across(not x_axis)
 
+    def x_axis(self) -> bool:
+        return isinstance(self.ui_data.layout_direction, LeftToRight)
+
     def __init__(self):
         self.ui_data = UIData()
         self.element_data = ElementData()
@@ -83,12 +100,12 @@ class UI:
         self.parent: 'UI' = None
 
     def __enter__(self) -> 'UI':
-        return self.open()
+        return self.__open()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.exit()
+        self.__exit()
 
-    def open(self) -> 'UI':
+    def __open(self) -> 'UI':
         if len(UI.current_element) != 0:
             UI.current_element[-1].children.append(self)
             self.parent = UI.current_element[-1]
@@ -97,27 +114,44 @@ class UI:
         UI.current_element.append(self)
         return self
 
-    def add_padding_to_dimensions_axis(self, x_axis: bool) -> None:
+    def __add_padding_to_dimensions_axis(self, x_axis: bool) -> None:
+        if isinstance(self.get_ui_length_across(x_axis), Fixed):
+            return
         self.set_length_across(x_axis, self.get_length_across(x_axis) + self.get_padding_across(x_axis))
+        if x_axis == self.x_axis():
+            child_gap = max(0, len(self.children) - 1) * self.ui_data.child_gap
+            self.set_length_across(x_axis, self.get_length_across(x_axis) + child_gap)
 
-    def add_padding_to_dimensions(self) -> None:
-        self.add_padding_to_dimensions_axis(True)
-        self.add_padding_to_dimensions_axis(False)
+    def __add_padding_to_dimensions(self) -> None:
+        self.__add_padding_to_dimensions_axis(True)
+        self.__add_padding_to_dimensions_axis(False)
 
-    def exit(self) -> 'UI':
-        UI.__current_element.pop()
+    def __add_dimensions_to_parent(self) -> None:
+        if self.parent is None:
+            return
+        x_axis = self.parent.x_axis()
+        if not isinstance(self.parent.get_ui_length_across(x_axis), Fixed):
+            self.parent.set_length_across(x_axis,
+                                          self.parent.get_length_across(x_axis) + self.get_padding_across(x_axis))
+        if not isinstance(self.parent.get_ui_length_perpen(x_axis), Fixed):
+            self.parent.set_length_perpen(x_axis,
+                                          max(self.parent.get_padding_perpen(x_axis), self.get_length_perpen(x_axis)))
+
+    def __exit(self) -> 'UI':
+        UI.current_element.pop()
 
         if isinstance(self.ui_data.width, Fixed):
             self.element_data.width += self.ui_data.width.pixels
         if isinstance(self.ui_data.height, Fixed):
             self.element_data.height += self.ui_data.height.pixels
 
-        self.add_padding_to_dimensions()
+        self.__add_padding_to_dimensions()
+        self.__add_dimensions_to_parent()
 
         return self
 
     def close(self) -> 'UI':
-        return self.open().exit()
+        return self.__open().__exit()
 
     def background(self, color: Color | None) -> 'UI':
         self.ui_data.background_color = color
@@ -200,15 +234,3 @@ def render() -> list['DrawCommand']:
     root = UI.root_element
 
     return draw_commands
-
-
-
-
-
-
-
-
-
-
-
-
