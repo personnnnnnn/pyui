@@ -132,7 +132,7 @@ class UI:
         x_axis = self.parent.x_axis()
         if not isinstance(self.parent.get_ui_length_across(x_axis), Fixed):
             self.parent.set_length_across(x_axis,
-                                          self.parent.get_length_across(x_axis) + self.get_padding_across(x_axis))
+                                          self.parent.get_length_across(x_axis) + self.get_length_across(x_axis))
         if not isinstance(self.parent.get_ui_length_perpen(x_axis), Fixed):
             self.parent.set_length_perpen(x_axis,
                                           max(self.parent.get_padding_perpen(x_axis), self.get_length_perpen(x_axis)))
