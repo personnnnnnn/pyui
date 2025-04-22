@@ -37,11 +37,4 @@ class Renderer:
                 )
             elif isinstance(command, DrawText):
                 text_surf = self.text_measurer.get_font(command.font_size).render(command.text, True, ui_color_to_pg_color(command.color))
-                # for debugging
-                # pygame.draw.rect(
-                #     surface=surface,
-                #     color=ui_color_to_pg_color(Color(255, 0, 0)),
-                #     rect=(command.x, command.y, UI.text_measurer.get_text_width(command.text, command.font_size),
-                #           UI.text_measurer.get_text_height(command.font_size)),
-                # )
                 surface.blit(text_surf, (command.x, command.y))

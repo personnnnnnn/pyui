@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 from abc import ABC
+import functools
+from typing import Callable
 
 class TextMeasurer(ABC):
     def get_text_height(self, font_size: float) -> float:
@@ -78,12 +80,26 @@ class ElementData:
     max_width: float = 0
     max_height: float = 0
 
+def event(name: str | None = None):
+    def decorator(func: Callable):
+        event_name = name if name is not None else func.__name__
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        wrapper.event_name = event_name
+
+        return wrapper
+    return decorator
+
 class UIElement:
     def __init__(self) -> None:
         self.parent: 'UI' = UI.current_element[-1] if len(UI.current_element) != 0 else None
         if self.parent is not None and isinstance(self.parent, UI):
             self.parent.children.append(self)
         self.element_data = ElementData()
+        ...
 
     def get_length_across(self, x_axis: bool) -> float:
         return self.element_data.width if x_axis else self.element_data.height
@@ -165,12 +181,6 @@ class UI(UIElement):
         self.ui_data = UIData()
         self.children: list['UI'] = []
 
-    def __enter__(self) -> 'UI':
-        return self.__open()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__exit()
-
     def __open(self) -> 'UI':
         if len(UI.current_element) == 0:
             UI.root_element = self
@@ -199,7 +209,7 @@ class UI(UIElement):
         if self.parent is None:
             return
         parent_x_axis = self.parent.x_axis()
-        if x_axis and not isinstance(self.parent.get_ui_length_across(parent_x_axis), Fixed):
+        if x_axis and not isinstance(self.parent.get_ui_length_across(x_axis), Fixed):
             self.parent.set_length_across(
                 parent_x_axis,
                 self.parent.get_length_across(parent_x_axis) + self.get_length_across(parent_x_axis)
@@ -208,7 +218,7 @@ class UI(UIElement):
                 parent_x_axis,
                 self.parent.get_length_across(parent_x_axis) + self.get_length_across(parent_x_axis)
             )
-        if not x_axis and not isinstance(self.parent.get_ui_length_perpen(parent_x_axis), Fixed):
+        if not x_axis and not isinstance(self.parent.get_ui_length_perpen(x_axis), Fixed):
             self.parent.set_length_perpen(
                 parent_x_axis,
                 max(self.parent.get_padding_perpen(parent_x_axis), self.get_length_perpen(parent_x_axis))
@@ -360,21 +370,25 @@ class UI(UIElement):
 
         if x_axis != self.x_axis():
             for child in self.children:
-                child.handle_growing_and_shrinking(x_axis)
                 if not (isinstance(child, Text) or isinstance(child.get_ui_length_across(x_axis), Grow)):
                     continue
                 child.set_length_across(x_axis, self.get_length_across(x_axis) - self.get_padding_across(x_axis))
+
+            for child in self.children:
+                if isinstance(child, UI):
+                    child.handle_growing_and_shrinking(x_axis)
+
             return
 
         remaining_length = self.get_length_across(x_axis) - self.get_padding_across(x_axis)
-        changeable: list[UI] = []
+        changeable: list[UIElement] = []
         for child in self.children:
             remaining_length -= child.get_length_across(x_axis)
-            if isinstance(child, Text) or isinstance(child.get_ui_length_across(x_axis), Grow):
+            if (isinstance(child, Text) and x_axis) or (not isinstance(child, Text) and isinstance(child.get_ui_length_across(x_axis), Grow)):
                 changeable.append(child)
         remaining_length -= (len(self.children) - 1) * self.ui_data.child_gap
 
-        while remaining_length > 0 and len(changeable) != 0: # grow
+        while remaining_length > .1 and len(changeable) != 0: # grow
             smallest = changeable[0].get_length_across(x_axis)
             second_smallest = float('inf')
             length_to_add = remaining_length
@@ -399,7 +413,7 @@ class UI(UIElement):
                     changeable.remove(child)
                 remaining_length -= child.get_length_across(x_axis) - previous_length
 
-        while remaining_length < 0 and len(changeable) != 0: # shrink
+        while remaining_length < -.1 and len(changeable) != 0: # shrink
             largest = changeable[0].get_length_across(x_axis)
             second_largest = 0
             length_to_add = remaining_length
@@ -452,22 +466,17 @@ class Text(UI):
         return self
 
     def show(self) -> None:
-        self.element_data.width = UI.text_measurer.get_text_width(self.text, self.ui_data.font_size)
-        self.element_data.max_width = self.element_data.width
-        self.element_data.height = UI.text_measurer.get_text_height(self.ui_data.font_size)
-        self.element_data.min_height = self.element_data.height
-        words = self.text.split(' ')
-        if len(words) != 0:
-            min_word_length = min(map(lambda s: UI.text_measurer.get_text_width(s, self.ui_data.font_size), words))
-            self.element_data.min_width = min_word_length
+        with self: ...
 
     def wrap_text(self) -> None:
-        if isinstance(self.parent.ui_data.height, Fit):
-            if not self.parent.x_axis():
-                self.parent.element_data.height += self.element_data.height
-            else:
-                inner_height = self.parent.element_data.height - (p := self.parent.get_padding_across(True))
-                self.parent.element_data.height = max(inner_height, self.element_data.height) + p
+        self.element_data.height = UI.text_measurer.get_text_height(self.ui_data.font_size)
+        if self.parent is not None:
+            if isinstance(self.parent.ui_data.height, Fit):
+                if not self.parent.x_axis():
+                    self.parent.element_data.height += self.element_data.height
+                else:
+                    inner_height = self.parent.element_data.height - (p := self.parent.get_padding_across(False))
+                    self.parent.element_data.height = max(inner_height, self.element_data.height) + p
 
     def render(self, draw_commands: list['DrawCommand'] | None = None, x: float = 0, y: float = 0) -> list['DrawCommand']:
         if draw_commands is None:
@@ -483,11 +492,35 @@ class Text(UI):
 
         return draw_commands
 
+    def __enter__(self) -> 'Text':
+        UI.current_element.append(self)
+
+        self.element_data.width = UI.text_measurer.get_text_width(self.text, self.ui_data.font_size)
+        self.element_data.max_width = self.element_data.width
+
+        words = self.text.split(' ')
+
+        if len(words) != 0:
+            min_word_length = min(map(lambda s: UI.text_measurer.get_text_width(s, self.ui_data.font_size), words))
+            self.element_data.min_width = min_word_length
+
+        if self.parent is not None:
+            if isinstance(self.parent.ui_data.width, Fit):
+                if self.parent.x_axis():
+                    self.parent.element_data.width += self.element_data.width
+                else:
+                    inner_width = self.parent.element_data.width - (p := self.parent.get_padding_across(True))
+                    self.parent.element_data.width = max(inner_width, self.element_data.width)
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        UI.current_element.pop()
+
 def render(x: float = 0, y: float = 0) -> list['DrawCommand']:
     root = UI.root_element
 
     root.handle_fit_sizing(True)
-    root.handle_fit_sizing(False)
     root.handle_growing_and_shrinking(True)
     root.wrap_text()
     root.handle_growing_and_shrinking(False)
