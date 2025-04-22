@@ -4,7 +4,7 @@ inspiration from Nic Barker's [Clay](https://www.nicbarker.com/clay)
 tail-wind classes-like syntax.
 
 Also, a quick note: This library should not be yet used
-in production! It can't even wrap text!
+in production! It can't even show images!
 
 Here is a basic example (using the pygame renderer):
 
