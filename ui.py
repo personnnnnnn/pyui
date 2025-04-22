@@ -227,6 +227,16 @@ class UI:
     def sizing_fixed(self, width: float, height: float) -> 'UI':
         return self.width_fixed(width).height_fixed(height)
 
+    def layout_direction(self, direction: LayoutDirection) -> 'UI':
+        self.ui_data.layout_direction = direction
+        return self
+
+    def top_to_bottom(self) -> 'UI':
+        return self.layout_direction(TopToBottom())
+
+    def left_to_right(self) -> 'UI':
+        return self.layout_direction(LeftToRight())
+
     def render(self, draw_commands: list['DrawCommand'] | None = None, x: float = 0, y: float = 0) -> list['DrawCommand']:
         if draw_commands is None:
             draw_commands = []
@@ -247,10 +257,11 @@ class UI:
 
         for child in self.children:
             child.render(draw_commands, x, y)
+            increment = self.ui_data.child_gap + child.get_length_across(x_axis)
             if x_axis:
-                x += self.ui_data.child_gap
+                x += increment
             else:
-                y += self.ui_data.child_gap
+                y += increment
 
         return draw_commands
 

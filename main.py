@@ -5,6 +5,12 @@ import pygame
 from ui import UI, Color, render
 from pygame_renderer import render_draw_commands
 
+def Box() -> 'UI':
+    return UI().sizing_fixed(100, 100).background(Color(0, 255, 0))
+
+def Row() -> 'UI':
+    return UI().top_to_bottom().child_gap(20)
+
 def render_ui() -> None:
     with (UI()
             .background(Color(255, 255, 255))
@@ -16,7 +22,12 @@ def render_ui() -> None:
                 .background(Color(0, 0, 0))
                 .spacing(20)
               ):
-            UI().sizing_fixed(200, 200).background(Color(0, 255, 0)).close()
+            with Row():
+                Box().close()
+                Box().close()
+            with Row():
+                Box().close()
+                Box().close()
 
 # quick thingy for rendering ui (using pygame renderer)
 
