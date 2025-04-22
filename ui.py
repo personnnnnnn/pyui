@@ -14,6 +14,19 @@ class UIFont(ABC):
     def get_text_width(self, text: str, font_size: float) -> float:
         ...
 
+def event(name: str | None = None):
+    def decorator(func: Callable):
+        event_name = name if name is not None else func.__name__
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        wrapper.event_name = event_name
+
+        return wrapper
+    return decorator
+
 @dataclass
 class Color:
     r: int
@@ -84,19 +97,6 @@ class ElementData:
     min_height: float = 0
     max_width: float = 0
     max_height: float = 0
-
-def event(name: str | None = None):
-    def decorator(func: Callable):
-        event_name = name if name is not None else func.__name__
-
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
-
-        wrapper.event_name = event_name
-
-        return wrapper
-    return decorator
 
 class UIElement:
     def __init__(self) -> None:
@@ -204,6 +204,12 @@ class UI(UIElement):
             if isinstance(child, UI):
                 child.handle_fit_sizing(x_axis)
         self.add_dimensions_to_parent(x_axis)
+
+    def __enter__(self):
+        return self.__open()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__exit()
 
     def add_dimensions_to_parent(self, x_axis: bool) -> None:
         if self.parent is None:
@@ -475,14 +481,65 @@ class Text(UI):
         with self: ...
 
     def wrap_text(self) -> None:
-        self.element_data.height = self.ui_data.font.get_text_height(self.ui_data.font_size)
-        if self.parent is not None:
-            if isinstance(self.parent.ui_data.height, Fit):
-                if not self.parent.x_axis():
-                    self.parent.element_data.height += self.element_data.height
+        self.text = self.text.replace('\r', '\n')
+        line_count = 1
+
+        if self.parent is None:
+            self.element_data.height = self.ui_data.font.get_text_height(self.ui_data.font_size) * line_count
+            return
+
+        line_width = 0
+        max_width = self.parent.element_data.width
+        current_line = ''
+        new_text = ''
+
+        i = 0
+        while i < len(self.text):
+            if self.text[i] == '\n':
+                new_text += f'{current_line}\n'
+                current_line = ''
+                line_width = 0
+                line_count += 1
+                i += 1
+                continue
+
+            char = self.text[i]
+            char_width = self.ui_data.font.get_text_width(char, self.ui_data.font_size)
+            new_line_width = line_width + char_width
+
+            if new_line_width <= max_width:
+                current_line += char
+                line_width = new_line_width
+                i += 1
+            else:
+                # Try to break at space or tab
+                cutoff_index = max(current_line.rfind(' '), current_line.rfind('\t'))
+                if cutoff_index != -1:
+                    left = current_line[:cutoff_index]
+                    right = current_line[cutoff_index + 1:]  # drop the space
                 else:
-                    inner_height = self.parent.element_data.height - (p := self.parent.get_padding_across(False))
-                    self.parent.element_data.height = max(inner_height, self.element_data.height) + p
+                    # No spaces, hard break
+                    left = current_line
+                    right = ''
+                new_text += f'{left}\n'
+                current_line = right
+                line_width = self.ui_data.font.get_text_width(current_line, self.ui_data.font_size)
+
+        if current_line != '':
+            if line_count > 1:
+                new_text += '\n'
+            new_text += current_line
+
+        self.text = new_text
+
+        self.element_data.height = self.ui_data.font.get_text_height(self.ui_data.font_size) * line_count
+
+        if isinstance(self.parent.ui_data.height, Fit):
+            if not self.parent.x_axis():
+                self.parent.element_data.height += self.element_data.height
+            else:
+                inner_height = self.parent.element_data.height - (p := self.parent.get_padding_across(False))
+                self.parent.element_data.height = max(inner_height, self.element_data.height) + p
 
     def render(self, draw_commands: list['DrawCommand'] | None = None, x: float = 0, y: float = 0) -> list['DrawCommand']:
         if draw_commands is None:

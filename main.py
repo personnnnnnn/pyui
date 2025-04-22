@@ -26,8 +26,14 @@ def render_ui() -> None:
                 StyledText('Document 1')
                 StyledText('Document 2')
             with Section().sizing_grow().top_to_bottom().padding(10):
-                Title('Title')
-                StyledText('Content')
+                Title('Squirrels')
+                StyledText('''Squirrels are small to medium-sized rodents known for their bushy tails, agile movements, and sharp incisors. Belonging to the family Sciuridae, squirrels are found all over the world, from woodlands and urban parks to mountainous regions. There are three main types: tree squirrels, ground squirrels, and flying squirrels, each adapted to their specific environments.
+
+Tree squirrels, such as the eastern gray squirrel, are the most commonly seen. They’re excellent climbers, using their strong hind legs and claws to leap between branches. Ground squirrels, like the California ground squirrel, prefer burrowing and live in colonies. Flying squirrels, despite their name, glide rather than fly, using a flap of skin called a patagium stretched between their limbs.
+
+Squirrels are omnivores but primarily eat nuts, seeds, fruits, and occasionally insects or bird eggs. They play a vital role in forest ecosystems by helping to disperse seeds, especially from trees like oaks and pines. Squirrels have a remarkable memory, often burying food and retrieving it later—even months afterward.
+
+Highly adaptable and intelligent, squirrels have learned to thrive alongside humans, often raiding bird feeders or gardens. Their curious behavior, energetic antics, and adaptability make them fascinating creatures in both wild and urban settings.''')
 
 pygame.init()
 
