@@ -6,7 +6,7 @@ tail-wind classes-like syntax.
 Also, a quick note: This library should not be yet used
 in production! It can't even render text!
 
-Here is a basic example using the pygame rendered:
+Here is a basic example using the pygame renderer:
 ```python
 import pygame
 
