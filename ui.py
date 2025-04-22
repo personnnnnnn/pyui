@@ -25,7 +25,7 @@ class Sizing: ...
 
 
 class Fit(Sizing): ...
-
+class Grow(Sizing): ...
 
 @dataclass
 class Fixed(Sizing): pixels: float
@@ -218,6 +218,15 @@ class UI:
     def sizing_fit(self) -> 'UI':
         return self.width_fit().height_fit()
 
+    def width_grow(self) -> 'UI':
+        return self.width(Grow())
+
+    def height_grow(self) -> 'UI':
+        return self.height(Grow())
+
+    def sizing_grow(self) -> 'UI':
+        return self.width_grow().height_grow()
+
     def width_fixed(self, width: float) -> 'UI':
         return self.width(Fixed(width))
 
@@ -265,6 +274,49 @@ class UI:
 
         return draw_commands
 
+    def handle_grow_sizing(self, x_axis: bool) -> None:
+        if len(self.children) == 0:
+            return
+
+        if x_axis != self.x_axis():
+            for child in self.children:
+                child.handle_grow_sizing(x_axis)
+                if not isinstance(child.get_ui_length_across(x_axis), Grow):
+                    continue
+                child.set_length_across(x_axis, self.get_length_across(x_axis) - self.get_padding_across(x_axis))
+            return
+
+        remaining_length = self.get_length_across(x_axis) - self.get_padding_across(x_axis)
+        growable: list[UI] = []
+        for child in self.children:
+            child.handle_grow_sizing(x_axis)
+            remaining_length -= child.get_length_across(x_axis)
+            if isinstance(child.get_ui_length_across(x_axis), Grow):
+                growable.append(child)
+        remaining_length -= (len(self.children) - 1) * self.ui_data.child_gap
+
+        while remaining_length > 0:
+            smallest = growable[0].get_length_across(x_axis)
+            second_smallest = float('inf')
+            length_to_add = remaining_length
+
+            for child in growable:
+                if child.get_length_across(x_axis) < smallest:
+                    second_smallest = smallest
+                    smallest = child.get_length_across(x_axis)
+                if child.get_length_across(x_axis) > smallest:
+                    second_smallest = min(second_smallest, child.get_length_across(x_axis))
+                    length_to_add = second_smallest - smallest
+
+            length_to_add = min(length_to_add, remaining_length / len(growable))
+
+            for child in growable:
+                if child.get_length_across(x_axis) == smallest:
+                    child.set_length_across(x_axis, child.get_length_across(x_axis) + length_to_add)
+                    remaining_length -= length_to_add
 
 def render(x: float = 0, y: float = 0) -> list['DrawCommand']:
-    return UI.root_element.render(x=x, y=y)
+    root = UI.root_element
+    root.handle_grow_sizing(True)
+    root.handle_grow_sizing(False)
+    return root.render(x=x, y=y)

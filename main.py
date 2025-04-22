@@ -16,16 +16,17 @@ def render_ui() -> None:
             .spacing(20)
           ):
         with (UI()
-                .sizing_fit()
+                .sizing_grow()
                 .background(Color(0, 0, 0))
                 .spacing(20)
               ):
-            # this is just a block of code
-            # ...so you can use any control-flow from python!
-            for i in range(2):
-                with Row():
-                    Box().close()
-                    Box().close()
+            ...
+        with (UI()
+                .sizing_grow()
+                .background(Color(0, 0, 0))
+                .spacing(20)
+              ):
+            ...
 
 pygame.init()
 
