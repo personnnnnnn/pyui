@@ -1,3 +1,13 @@
+PyUI is an immediate-mode python ui library that takes *heavy*
+inspiration from Nic Barker's [Clay](https://www.nicbarker.com/clay)
+(check him out, he's doing some amazing stuff!), but instead uses a
+tail-wind classes-like syntax.
+
+Also, a quick note: This library should not be yet used
+in production! It can't even render text!
+
+Here is a basic example using the pygame rendered:
+```python
 import pygame
 
 from ui import UI, Color, render
@@ -40,7 +50,7 @@ while True:
             pygame.quit()
             exit()
     screen.fill((255, 0, 255))
-
+    
     # render the ui here
     render_ui()
     draw_commands = render()
@@ -48,3 +58,4 @@ while True:
 
     pygame.display.update()
     clock.tick(60)
+```
