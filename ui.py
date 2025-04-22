@@ -3,7 +3,11 @@ from abc import ABC
 import functools
 from typing import Callable
 
-class TextMeasurer(ABC):
+class UIFont(ABC):
+    def __init__(self) -> None:
+        if Text.default_font is None:
+            Text.default_font = self
+
     def get_text_height(self, font_size: float) -> float:
         ...
 
@@ -35,6 +39,7 @@ class DrawText(DrawCommand):
     text: str
     font_size: float
     color: Color
+    font: UIFont
 
 class Sizing: ...
 
@@ -155,11 +160,6 @@ class UIElement:
 class UI(UIElement):
     current_element: list['UI'] = []
     root_element: 'UI' = None
-    text_measurer: TextMeasurer = None
-
-    @staticmethod
-    def set_text_measurer(text_measurer: TextMeasurer) -> None:
-        UI.text_measurer = text_measurer
 
     def get_ui_length_across(self, x_axis: bool) -> Sizing:
         return self.ui_data.width if x_axis else self.ui_data.height
@@ -449,17 +449,23 @@ class UI(UIElement):
 @dataclass
 class TextUIData:
     color: Color
+    font: UIFont
     font_size: float = 5
 
 class Text(UI):
+    default_font: UIFont = None
+
     def __init__(self, text: str) -> None:
         super().__init__()
         self.text = text
-        self.ui_data = TextUIData(Color(0, 0, 0))
+        self.ui_data = TextUIData(Color(0, 0, 0), Text.default_font)
 
     def font_size(self, font_size: float) -> 'Text':
         self.ui_data.font_size = font_size
         return self
+
+    def font(self, font: UIFont) -> 'Text':
+        self.ui_data.font = font
 
     def color(self, color: Color) -> 'Text':
         self.ui_data.color = color
@@ -469,7 +475,7 @@ class Text(UI):
         with self: ...
 
     def wrap_text(self) -> None:
-        self.element_data.height = UI.text_measurer.get_text_height(self.ui_data.font_size)
+        self.element_data.height = self.ui_data.font.get_text_height(self.ui_data.font_size)
         if self.parent is not None:
             if isinstance(self.parent.ui_data.height, Fit):
                 if not self.parent.x_axis():
@@ -488,6 +494,7 @@ class Text(UI):
             text=self.text,
             font_size=self.ui_data.font_size,
             color=self.ui_data.color,
+            font=self.ui_data.font,
         ))
 
         return draw_commands
@@ -495,13 +502,13 @@ class Text(UI):
     def __enter__(self) -> 'Text':
         UI.current_element.append(self)
 
-        self.element_data.width = UI.text_measurer.get_text_width(self.text, self.ui_data.font_size)
+        self.element_data.width = self.ui_data.font.get_text_width(self.text, self.ui_data.font_size)
         self.element_data.max_width = self.element_data.width
 
         words = self.text.split(' ')
 
         if len(words) != 0:
-            min_word_length = min(map(lambda s: UI.text_measurer.get_text_width(s, self.ui_data.font_size), words))
+            min_word_length = min(map(lambda s: self.ui_data.font.get_text_width(s, self.ui_data.font_size), words))
             self.element_data.min_width = min_word_length
 
         if self.parent is not None:

@@ -36,7 +36,8 @@ clock = pygame.time.Clock()
 
 pygame.display.set_caption('PyUI')
 
-renderer = Renderer(font_path='arial.ttf')
+renderer = Renderer()
+arial = renderer.load_font('arial.ttf')
 
 while True:
     for event in pygame.event.get():

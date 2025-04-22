@@ -1,13 +1,14 @@
 import pygame
-from ui import DrawCommand, DrawRect, DrawText, Color, TextMeasurer, UI
+from ui import DrawCommand, DrawRect, DrawText, Color, UIFont, UI
 
 def ui_color_to_pg_color(color: Color) -> pygame.Color:
     return pygame.Color(color.r, color.g, color.b)
 
 
-class PygameTextMeasurer(TextMeasurer):
+class PygameFont(UIFont):
     def __init__(self, font_path: str) -> None:
-        self.font_path = font_path  # Save path to font file
+        super().__init__()
+        self.font_path = font_path
 
     def get_font(self, font_size: float) -> pygame.font.Font:
         return pygame.font.Font(self.font_path, int(font_size))
@@ -22,10 +23,11 @@ class PygameTextMeasurer(TextMeasurer):
         return width
 
 class Renderer:
-    def __init__(self, font_path: str):
-        self.font_path = font_path
-        self.text_measurer = PygameTextMeasurer(self.font_path)
+    def __init__(self):
         UI.set_text_measurer(self.text_measurer)
+
+    def load_font(self, font_path: str) -> PygameFont:
+        return PygameFont(font_path)
 
     def render_draw_commands(self, surface: pygame.Surface, draw_commands: list[DrawCommand]) -> None:
         for command in draw_commands:
@@ -36,5 +38,7 @@ class Renderer:
                     rect=(command.x, command.y, command.width, command.height),
                 )
             elif isinstance(command, DrawText):
-                text_surf = self.text_measurer.get_font(command.font_size).render(command.text, True, ui_color_to_pg_color(command.color))
+                if not isinstance(command.font, PygameFont):
+                    raise Exception('Cannot use non-pygame font in pygame renderer!')
+                text_surf = command.font.get_font(command.font_size).render(command.text, True, ui_color_to_pg_color(command.color))
                 surface.blit(text_surf, (command.x, command.y))
