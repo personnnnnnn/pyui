@@ -28,7 +28,7 @@ pygame.init()
 screen = pygame.display.set_mode((400, 400))
 clock = pygame.time.Clock()
 
-pygame.display.set_caption('PyUI')
+pygame.display.set_caption('PyLay')
 
 renderer = Renderer()
 arial = renderer.load_font('arial.ttf')
