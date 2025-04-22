@@ -1,5 +1,12 @@
 from dataclasses import dataclass
+from abc import ABC
 
+class TextMeasurer(ABC):
+    def get_text_height(self, font_size: float) -> float:
+        ...
+
+    def get_text_width(self, text: str, font_size: float) -> float:
+        ...
 
 @dataclass
 class Color:
@@ -8,8 +15,7 @@ class Color:
     b: int
 
 
-class DrawCommand:
-    ...
+class DrawCommand: ...
 
 
 @dataclass
@@ -20,12 +26,22 @@ class DrawRect(DrawCommand):
     height: float
     color: Color
 
+@dataclass
+class DrawText(DrawCommand):
+    x: float
+    y: float
+    text: str
+    font_size: float
+    color: Color
 
 class Sizing: ...
 
 
 class Fit(Sizing): ...
+
+
 class Grow(Sizing): ...
+
 
 @dataclass
 class Fixed(Sizing): pixels: float
@@ -57,23 +73,35 @@ class UIData:
 class ElementData:
     width: float = 0
     height: float = 0
+    min_width: float = 0
+    min_height: float = 0
+    max_width: float = 0
+    max_height: float = 0
 
-
-class UI:
-    current_element: list['UI'] = []
-    root_element: 'UI' = None
-
-    def get_ui_length_across(self, x_axis: bool) -> Sizing:
-        return self.ui_data.width if x_axis else self.ui_data.height
-
-    def get_ui_length_perpen(self, x_axis: bool) -> Sizing:
-        return self.get_ui_length_across(not x_axis)
+class UIElement:
+    def __init__(self) -> None:
+        self.parent: 'UI' = UI.current_element[-1] if len(UI.current_element) != 0 else None
+        if self.parent is not None and isinstance(self.parent, UI):
+            self.parent.children.append(self)
+        self.element_data = ElementData()
 
     def get_length_across(self, x_axis: bool) -> float:
         return self.element_data.width if x_axis else self.element_data.height
 
     def get_length_perpen(self, x_axis: bool) -> float:
         return self.get_length_across(not x_axis)
+
+    def get_min_length_across(self, x_axis: bool) -> float:
+        return self.element_data.min_width if x_axis else self.element_data.min_height
+
+    def get_min_length_perpen(self, x_axis: bool) -> float:
+        return self.get_min_length_across(not x_axis)
+
+    def get_max_length_across(self, x_axis: bool) -> float:
+        return self.element_data.max_width if x_axis else self.element_data.max_height
+
+    def get_max_length_perpen(self, x_axis: bool) -> float:
+        return self.get_max_length_across(not x_axis)
 
     def set_length_across(self, x_axis: bool, length: float) -> None:
         if x_axis:
@@ -83,6 +111,45 @@ class UI:
 
     def set_length_perpen(self, x_axis: bool, length: float) -> float:
         self.set_length_across(not x_axis, length)
+
+    def set_min_length_across(self, x_axis: bool, length: float) -> None:
+        if x_axis:
+            self.element_data.min_width = length
+        else:
+            self.element_data.min_height = length
+
+    def set_min_length_perpen(self, x_axis: bool, length: float) -> float:
+        self.set_min_length_across(not x_axis, length)
+
+    def set_max_length_across(self, x_axis: bool, length: float) -> None:
+        if x_axis:
+            self.element_data.max_width = length
+        else:
+            self.element_data.max_height = length
+
+    def set_max_length_perpen(self, x_axis: bool, length: float) -> float:
+        self.set_max_length_across(not x_axis, length)
+
+    def render(self, draw_commands: list['DrawCommand'] | None = None, x: float = 0, y: float = 0) -> list['DrawCommand']:
+        ...
+
+    def wrap_text(self) -> None:
+        ...
+
+class UI(UIElement):
+    current_element: list['UI'] = []
+    root_element: 'UI' = None
+    text_measurer: TextMeasurer = None
+
+    @staticmethod
+    def set_text_measurer(text_measurer: TextMeasurer) -> None:
+        UI.text_measurer = text_measurer
+
+    def get_ui_length_across(self, x_axis: bool) -> Sizing:
+        return self.ui_data.width if x_axis else self.ui_data.height
+
+    def get_ui_length_perpen(self, x_axis: bool) -> Sizing:
+        return self.get_ui_length_across(not x_axis)
 
     def get_padding_across(self, x_axis: bool) -> float:
         return self.ui_data.padding_left + self.ui_data.padding_right if x_axis else self.ui_data.padding_top + self.ui_data.padding_bottom
@@ -94,10 +161,9 @@ class UI:
         return isinstance(self.ui_data.layout_direction, LeftToRight)
 
     def __init__(self):
+        super().__init__()
         self.ui_data = UIData()
-        self.element_data = ElementData()
         self.children: list['UI'] = []
-        self.parent: 'UI' = None
 
     def __enter__(self) -> 'UI':
         return self.__open()
@@ -106,10 +172,7 @@ class UI:
         self.__exit()
 
     def __open(self) -> 'UI':
-        if len(UI.current_element) != 0:
-            UI.current_element[-1].children.append(self)
-            self.parent = UI.current_element[-1]
-        else:
+        if len(UI.current_element) == 0:
             UI.root_element = self
         UI.current_element.append(self)
         return self
@@ -126,16 +189,34 @@ class UI:
         self.__add_padding_to_dimensions_axis(True)
         self.__add_padding_to_dimensions_axis(False)
 
-    def __add_dimensions_to_parent(self) -> None:
+    def handle_fit_sizing(self, x_axis: bool) -> None:
+        for child in self.children:
+            if isinstance(child, UI):
+                child.handle_fit_sizing(x_axis)
+        self.add_dimensions_to_parent(x_axis)
+
+    def add_dimensions_to_parent(self, x_axis: bool) -> None:
         if self.parent is None:
             return
-        x_axis = self.parent.x_axis()
-        if not isinstance(self.parent.get_ui_length_across(x_axis), Fixed):
-            self.parent.set_length_across(x_axis,
-                                          self.parent.get_length_across(x_axis) + self.get_length_across(x_axis))
-        if not isinstance(self.parent.get_ui_length_perpen(x_axis), Fixed):
-            self.parent.set_length_perpen(x_axis,
-                                          max(self.parent.get_padding_perpen(x_axis), self.get_length_perpen(x_axis)))
+        parent_x_axis = self.parent.x_axis()
+        if x_axis and not isinstance(self.parent.get_ui_length_across(parent_x_axis), Fixed):
+            self.parent.set_length_across(
+                parent_x_axis,
+                self.parent.get_length_across(parent_x_axis) + self.get_length_across(parent_x_axis)
+            )
+            self.parent.set_min_length_across(
+                parent_x_axis,
+                self.parent.get_length_across(parent_x_axis) + self.get_length_across(parent_x_axis)
+            )
+        if not x_axis and not isinstance(self.parent.get_ui_length_perpen(parent_x_axis), Fixed):
+            self.parent.set_length_perpen(
+                parent_x_axis,
+                max(self.parent.get_padding_perpen(parent_x_axis), self.get_length_perpen(parent_x_axis))
+            )
+            self.parent.set_min_length_across(
+                parent_x_axis,
+                self.parent.get_length_across(parent_x_axis) + self.get_length_across(parent_x_axis)
+            )
 
     def __exit(self) -> 'UI':
         UI.current_element.pop()
@@ -146,11 +227,10 @@ class UI:
             self.element_data.height += self.ui_data.height.pixels
 
         self.__add_padding_to_dimensions()
-        self.__add_dimensions_to_parent()
 
         return self
 
-    def close(self) -> 'UI':
+    def show(self) -> 'UI':
         return self.__open().__exit()
 
     def background(self, color: Color | None) -> 'UI':
@@ -274,33 +354,32 @@ class UI:
 
         return draw_commands
 
-    def handle_grow_sizing(self, x_axis: bool) -> None:
+    def handle_growing_and_shrinking(self, x_axis: bool) -> None:
         if len(self.children) == 0:
             return
 
         if x_axis != self.x_axis():
             for child in self.children:
-                child.handle_grow_sizing(x_axis)
-                if not isinstance(child.get_ui_length_across(x_axis), Grow):
+                child.handle_growing_and_shrinking(x_axis)
+                if not (isinstance(child, Text) or isinstance(child.get_ui_length_across(x_axis), Grow)):
                     continue
                 child.set_length_across(x_axis, self.get_length_across(x_axis) - self.get_padding_across(x_axis))
             return
 
         remaining_length = self.get_length_across(x_axis) - self.get_padding_across(x_axis)
-        growable: list[UI] = []
+        changeable: list[UI] = []
         for child in self.children:
-            child.handle_grow_sizing(x_axis)
             remaining_length -= child.get_length_across(x_axis)
-            if isinstance(child.get_ui_length_across(x_axis), Grow):
-                growable.append(child)
+            if isinstance(child, Text) or isinstance(child.get_ui_length_across(x_axis), Grow):
+                changeable.append(child)
         remaining_length -= (len(self.children) - 1) * self.ui_data.child_gap
 
-        while remaining_length > 0:
-            smallest = growable[0].get_length_across(x_axis)
+        while remaining_length > 0 and len(changeable) != 0: # grow
+            smallest = changeable[0].get_length_across(x_axis)
             second_smallest = float('inf')
             length_to_add = remaining_length
 
-            for child in growable:
+            for child in changeable:
                 if child.get_length_across(x_axis) < smallest:
                     second_smallest = smallest
                     smallest = child.get_length_across(x_axis)
@@ -308,15 +387,109 @@ class UI:
                     second_smallest = min(second_smallest, child.get_length_across(x_axis))
                     length_to_add = second_smallest - smallest
 
-            length_to_add = min(length_to_add, remaining_length / len(growable))
+            length_to_add = min(length_to_add, remaining_length / len(changeable))
 
-            for child in growable:
-                if child.get_length_across(x_axis) == smallest:
-                    child.set_length_across(x_axis, child.get_length_across(x_axis) + length_to_add)
-                    remaining_length -= length_to_add
+            for child in changeable:
+                previous_length = child.get_length_across(x_axis)
+                if child.get_length_across(x_axis) != smallest:
+                    continue
+                child.set_length_across(x_axis, child.get_length_across(x_axis) + length_to_add)
+                if child.get_length_across(x_axis) >= (m := child.get_max_length_across(x_axis)) and m != 0:
+                    child.set_length_across(x_axis, m)
+                    changeable.remove(child)
+                remaining_length -= child.get_length_across(x_axis) - previous_length
+
+        while remaining_length < 0 and len(changeable) != 0: # shrink
+            largest = changeable[0].get_length_across(x_axis)
+            second_largest = 0
+            length_to_add = remaining_length
+
+            for child in changeable:
+                if child.get_length_across(x_axis) > largest:
+                    second_largest = largest
+                    largest = child.get_length_across(x_axis)
+                if child.get_length_across(x_axis) < largest:
+                    second_largest = max(second_largest, child.get_length_across(x_axis))
+                    length_to_add = second_largest - largest
+
+            length_to_add = max(length_to_add, remaining_length / len(changeable))
+
+            for child in changeable:
+                previous_length = child.get_length_across(x_axis)
+                if child.get_length_across(x_axis) != largest:
+                    continue
+                child.set_length_across(x_axis, child.get_length_across(x_axis) + length_to_add)
+                if child.get_length_across(x_axis) <= (m := child.get_min_length_across(x_axis)):
+                    child.set_length_across(x_axis, m)
+                    changeable.remove(child)
+                remaining_length += child.get_length_across(x_axis) - previous_length
+
+        for child in self.children:
+            if isinstance(child, UI):
+                child.handle_growing_and_shrinking(x_axis)
+
+    def wrap_text(self) -> None:
+        for child in self.children:
+            child.wrap_text()
+
+@dataclass
+class TextUIData:
+    color: Color
+    font_size: float = 5
+
+class Text(UI):
+    def __init__(self, text: str) -> None:
+        super().__init__()
+        self.text = text
+        self.ui_data = TextUIData(Color(0, 0, 0))
+
+    def font_size(self, font_size: float) -> 'Text':
+        self.ui_data.font_size = font_size
+        return self
+
+    def color(self, color: Color) -> 'Text':
+        self.ui_data.color = color
+        return self
+
+    def show(self) -> None:
+        self.element_data.width = UI.text_measurer.get_text_width(self.text, self.ui_data.font_size)
+        self.element_data.max_width = self.element_data.width
+        self.element_data.height = UI.text_measurer.get_text_height(self.ui_data.font_size)
+        self.element_data.min_height = self.element_data.height
+        words = self.text.split(' ')
+        if len(words) != 0:
+            min_word_length = min(map(lambda s: UI.text_measurer.get_text_width(s, self.ui_data.font_size), words))
+            self.element_data.min_width = min_word_length
+
+    def wrap_text(self) -> None:
+        if isinstance(self.parent.ui_data.height, Fit):
+            if not self.parent.x_axis():
+                self.parent.element_data.height += self.element_data.height
+            else:
+                inner_height = self.parent.element_data.height - (p := self.parent.get_padding_across(True))
+                self.parent.element_data.height = max(inner_height, self.element_data.height) + p
+
+    def render(self, draw_commands: list['DrawCommand'] | None = None, x: float = 0, y: float = 0) -> list['DrawCommand']:
+        if draw_commands is None:
+            draw_commands = []
+
+        draw_commands.append(DrawText(
+            x=x,
+            y=y,
+            text=self.text,
+            font_size=self.ui_data.font_size,
+            color=self.ui_data.color,
+        ))
+
+        return draw_commands
 
 def render(x: float = 0, y: float = 0) -> list['DrawCommand']:
     root = UI.root_element
-    root.handle_grow_sizing(True)
-    root.handle_grow_sizing(False)
+
+    root.handle_fit_sizing(True)
+    root.handle_fit_sizing(False)
+    root.handle_growing_and_shrinking(True)
+    root.wrap_text()
+    root.handle_growing_and_shrinking(False)
+
     return root.render(x=x, y=y)
