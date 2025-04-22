@@ -1,6 +1,7 @@
-PyUI is an immediate-mode python ui library that takes *heavy*
-inspiration from Nic Barker's [Clay](https://www.nicbarker.com/clay)
-(check him out, he's doing some amazing stuff!), but instead uses a
+PyLay (short for Python Layout, originally named PyUI because I didn't know that there
+was already a library with the same name) is an immediate-mode python UI
+library that takes *heavy* inspiration from Nic Barker's [Clay](https://www.nicbarker.com/clay)
+(check him out, he's doing some amazing stuff!) that uses a
 tail-wind classes-like syntax.
 
 Also, a quick note: This library should not be yet used
