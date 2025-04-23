@@ -37,7 +37,7 @@ Squirrels are omnivores but primarily eat nuts, seeds, fruits, and occasionally 
 
 Highly adaptable and intelligent, squirrels have learned to thrive alongside humans, often raiding bird feeders or gardens. Their curious behavior, energetic antics, and adaptability make them fascinating creatures in both wild and urban settings.''')
                 UI().height_fixed(10).show()
-                StyledText('Author: CharGPT')
+                StyledText('Author: ChatGPT')
 
 pygame.init()
 
