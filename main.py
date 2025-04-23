@@ -2,9 +2,10 @@ import pygame
 
 from ui import UI, Color, render, Text
 from pygame_renderer import Renderer
+from math import sin
 
 def StyledText(text: str) -> None:
-    Text(text).font_size(20).color(Color(100, 100, 100)).show()
+    Text(text).font_size(10).color(Color(100, 100, 100)).show()
 
 def Title(text: str) -> None:
     Text(text).font_size(40).color(Color(100, 100, 100)).show()
@@ -25,7 +26,7 @@ def render_ui() -> None:
             with Section().height_grow().top_to_bottom():
                 StyledText('Document 1')
                 StyledText('Document 2')
-            with Section().sizing_grow().top_to_bottom().padding(10):
+            with Section().sizing_grow().top_to_bottom().padding((sin(pygame.time.get_ticks() / 1000) + 1) / 2 * 30 + 10):
                 Title('Squirrels')
                 StyledText('''Squirrels are small to medium-sized rodents known for their bushy tails, agile movements, and sharp incisors. Belonging to the family Sciuridae, squirrels are found all over the world, from woodlands and urban parks to mountainous regions. There are three main types: tree squirrels, ground squirrels, and flying squirrels, each adapted to their specific environments.
 

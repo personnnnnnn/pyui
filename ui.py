@@ -489,7 +489,7 @@ class Text(UI):
             return
 
         line_width = 0
-        max_width = self.parent.element_data.width
+        max_width = self.parent.element_data.width - self.parent.get_padding_across(True)
         current_line = ''
         new_text = ''
 
@@ -526,8 +526,6 @@ class Text(UI):
                 line_width = self.ui_data.font.get_text_width(current_line, self.ui_data.font_size)
 
         if current_line != '':
-            if line_count > 1:
-                new_text += '\n'
             new_text += current_line
 
         self.text = new_text
