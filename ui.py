@@ -518,12 +518,14 @@ class Text(UI):
                     left = current_line[:cutoff_index]
                     right = current_line[cutoff_index + 1:]  # drop the space
                 else:
-                    # No spaces, hard break
-                    left = current_line
-                    right = ''
+                    left = current_line[-1:]
+                    right = current_line[-1]
+
                 new_text += f'{left}\n'
                 current_line = right
+
                 line_width = self.ui_data.font.get_text_width(current_line, self.ui_data.font_size)
+                line_count += 1
 
         if current_line != '':
             new_text += current_line

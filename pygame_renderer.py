@@ -47,11 +47,7 @@ class Renderer:
                 lines = command.text.splitlines()
                 y_shift = 0
                 f = command.font
-                # pygame.draw.rect(
-                #     surface=surface,
-                #     color=ui_color_to_pg_color(Color(255, 0, 0)),
-                #     rect=(command.x, command.y, f.get_text_width(command.text, command.font_size), f.get_text_height(command.font_size)),
-                # )
+
                 for line in lines:
                     height = f.get_text_height(command.font_size)
                     text_surf = f.get_font(command.font_size).render(line, True, ui_color_to_pg_color(command.color))
