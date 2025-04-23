@@ -130,7 +130,7 @@ Specifies the space to put in between the children of a div in pixels.
 ### `UI.no_child_gap() -> UI`
 Removes all child gap.
 
-Equivalent to `element.child_hap(0)`
+Equivalent to `element.child_gap(0)`
 
 ### `UI.spacing(spacing: float) -> UI`
 Sets the padding and child gap of a div in pixels.
