@@ -125,7 +125,7 @@ Removes all padding.
 Equivalent to `element.padding(0)`.
 
 ### `UI.child_gap(child_gap: float) -> UI`
-Sets the amount of space to put inbetween the children of a div in pixels.
+Specifies the space to put in between the children of a div in pixels.
 
 ### `UI.no_child_gap() -> UI`
 Removes all child gap.
